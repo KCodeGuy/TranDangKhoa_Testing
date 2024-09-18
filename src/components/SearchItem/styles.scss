@@ -1,0 +1,27 @@
+@import "../../assets/scss/base.scss";
+
+.search-container {
+  font-size: $text-md;
+  box-sizing: border-box;
+  border-radius: 24px;
+  width: 320px;
+  border: 2px solid #777;
+  display: flex;
+  padding: 0 16px;
+  align-items: center;
+  transition: border-color 0.3s ease;
+  & .search-input {
+    border: none;
+    outline: none;
+    background-color: transparent;
+    box-sizing: border-box;
+    height: 46px;
+    padding: 0 8px;
+    margin-right: 12px;
+    flex: 1;
+  }
+
+  &:focus-within {
+    border-color: #4444;
+  }
+}

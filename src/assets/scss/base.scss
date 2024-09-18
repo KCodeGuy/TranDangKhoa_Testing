@@ -1,0 +1,30 @@
+// Text variable
+$text-sm: 12px;
+$text-md: 16px;
+$text-lg: 20px;
+$text-xl: 24px;
+$text-title: 28px;
+
+// Color variables
+$text-color: #333;
+$white-color: #fff;
+$primary-color: #247cd4;
+$error-color: #e91e63;
+$primary-hover-color: #3776c7;
+$error-hover-color: #dd4376;
+
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+#root {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
+.wrapper {
+  width: 80%;
+}

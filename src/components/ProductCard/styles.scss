@@ -1,0 +1,37 @@
+@import "../../assets/scss/base.scss";
+$min-height-img: 221px;
+
+.card-item {
+  border-radius: 8px;
+  box-shadow: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+
+  &:hover {
+    transform: translateY(-8px);
+    transition: all 0.2s linear;
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  & .card-img {
+    width: 100%;
+    height: max-content;
+    min-height: $min-height-img;
+    object-fit: cover;
+    object-position: center;
+  }
+}
+
+.card-body {
+  padding: 16px;
+  & .card-title {
+    font-size: $text-md;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  & .card-price {
+    color: $text-color;
+  }
+}
