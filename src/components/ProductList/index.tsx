@@ -1,70 +1,111 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { useInfiniteQuery } from "react-query";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import "~/components/ProductList/styles.scss";
 import { ProductCard } from "~/components/ProductCard";
 import { SearchItems } from "~/components/SearchItem";
+import { Product } from "~/types/Product";
 import { getAllProducts, searchProducts } from "~/services/ProductService";
 
-const LIMIT_ITEMS = 20;
-
 export const ProductList = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [skip, setSkip] = useState<number>(0);
   const [txtSearch, setTxtSearch] = useState<string>("");
   const [showScrollUp, setShowScrollUp] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const observer = useRef<IntersectionObserver | null>(null);
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const LIMIT_ITEMS = 20;
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useInfiniteQuery(
-      ["products", txtSearch],
-      async ({ pageParam = 0 }) => {
-        return txtSearch
-          ? searchProducts(txtSearch)
-          : getAllProducts(LIMIT_ITEMS, pageParam);
-      },
-      {
-        getNextPageParam: (lastPage, allPages) =>
-          lastPage.length < LIMIT_ITEMS
-            ? undefined
-            : allPages.length * LIMIT_ITEMS,
+  const showNextProducts = useCallback(async () => {
+    if (loading || !hasMore) return;
+
+    setLoading(true);
+    try {
+      const newProducts = await getAllProducts(LIMIT_ITEMS, skip);
+      if (newProducts.length < LIMIT_ITEMS) {
+        setHasMore(false);
       }
-    );
+      setProducts((prev) => [...prev, ...newProducts]);
+      setSkip((prev) => prev + LIMIT_ITEMS);
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, skip, hasMore]);
 
   const handleSearchProducts = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setTxtSearch(event.target.value);
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const query = event.target.value;
+      setTxtSearch(query);
+
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+      }
+
+      debounceTimeout.current = setTimeout(async () => {
+        if (query.trim()) {
+          try {
+            const searchResults = await searchProducts(query);
+            setProducts(searchResults);
+            setSkip(0);
+            setHasMore(searchResults.length === LIMIT_ITEMS);
+          } catch (error) {
+            console.error("Search failed:", error);
+          }
+        } else {
+          handleClearSearch();
+        }
+      }, 500);
     },
     []
   );
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollUp(window.scrollY > 300);
-    };
-    window.addEventListener("scroll", handleScroll);
+  const handleClearSearch = useCallback(() => {
+    setTxtSearch("");
+    setProducts([]);
+    setSkip(0);
+    setHasMore(true);
+    showNextProducts();
+  }, [showNextProducts]);
 
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+  const handleScroll = useCallback(() => {
+    setShowScrollUp(window.scrollY > 300);
   }, []);
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const loadMoreRef = useCallback(
-    (node: HTMLElement | null) => {
-      if (node && hasNextPage && !isFetchingNextPage) {
-        const observer = new IntersectionObserver((entries) => {
-          if (entries[0].isIntersecting) {
-            fetchNextPage();
-          }
-        });
-        observer.observe(node);
-        return () => {
-          observer.disconnect();
-        };
+  useEffect(() => {
+    showNextProducts();
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [handleScroll]);
+
+  useEffect(() => {
+    if (loading || !hasMore) return;
+
+    const lastProduct = document.querySelector("#last-product");
+    if (!lastProduct) return;
+
+    observer.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        showNextProducts();
       }
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage]
-  );
+    });
+
+    observer.current.observe(lastProduct);
+
+    return () => {
+      if (observer.current) observer.current.disconnect();
+    };
+  }, [loading, hasMore, showNextProducts]);
 
   return (
     <section className="product-wrapper">
@@ -77,38 +118,29 @@ export const ProductList = () => {
       </div>
 
       <div className="product-list">
-        {isLoading ? (
-          <p className="product-message">Loading...</p>
-        ) : (
-          data?.pages.map((page, pageIndex) =>
-            page.map((product, index) => (
-              <div
+        {products?.length > 0
+          ? products.map((product, index) => (
+              <ProductCard
                 key={product.id}
-                ref={index === page.length - 1 ? loadMoreRef : null}
-              >
-                <ProductCard
-                  product={product}
-                  isLastItem={
-                    index === page.length - 1 &&
-                    pageIndex === data.pages.length - 1
-                  }
-                />
-              </div>
+                isLastItem={index === products.length - 1}
+                product={product}
+              />
             ))
-          )
-        )}
-
-        {!isLoading && !hasNextPage && !isFetchingNextPage && !data && (
-          <p className="product-message">Không có sản phẩm</p>
-        )}
+          : ""}
       </div>
 
-      <div
+      {products?.length <= 0 && !loading ? (
+        <p className="product-message">Không tìm thấy sản phẩm!</p>
+      ) : null}
+
+      {loading && <p className="product-message">Loading...</p>}
+
+      <button
         className={`scroll-up-button ${showScrollUp ? "show" : ""}`}
         onClick={scrollToTop}
       >
         ↑
-      </div>
+      </button>
     </section>
   );
 };
